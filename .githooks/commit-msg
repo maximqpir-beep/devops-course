@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+IFS= read -r first_line < "$1"
+if ! printf '%s\n' "$first_line" | grep -Eq '^(feat|fix|docs|chore|refactor|merge|test|ci|build|perf|style)(\([^)]+\))?: .+'; then
+  echo 'ОШИБКА: нужен формат Conventional Commits, например: chore: test git hook'
+  exit 1
+fi
