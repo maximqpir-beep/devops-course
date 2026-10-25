@@ -150,7 +150,27 @@ sudo journalctl -k --since "5 minutes ago" --no-pager | grep 'UFW BLOCK' | tail 
 Снимки образуют последовательную цепочку. Последующие изменения UFW, hosts и файл аудита не входят в 03-ssh-hardened.
 VM сохраняется для следующих практических работ.
 
-## 8. Локальные имена
+## 8. Веб-сервер
+
+Установленный пакет: nginx 1.24.0 (Ubuntu). Конфигурация отдельного сайта находится в /etc/nginx/sites-available/devops-site; включённая ссылка — /etc/nginx/sites-enabled/devops-site. Стандартная конфигурация sites-enabled/default отключена.
+
+Каталог сайта: /var/www/devops-site, владелец devops:devops, режим 755. Файлы index.html и 404.html принадлежат devops:devops, режим 644. Рабочие процессы www-data читают файлы, но не могут изменять их. Права записи для остальных пользователей запрещены.
+
+Сайт перенаправляет HTTP с порта 80 на HTTPS на порту 443. Разрешены TLS 1.2 и TLS 1.3. Сертификат самоподписанный, содержит SAN DNS:devops.local, действует 365 дней. Он находится в /etc/ssl/certs/devops.crt (root:root, 644). Закрытый ключ /etc/ssl/private/devops.key (root:root, 600); в Git ключ не помещается.
+
+Команда выпуска сертификата:
+
+~~~bash
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/devops.key \
+  -out /etc/ssl/certs/devops.crt \
+  -subj "/CN=devops.local" \
+  -addext "subjectAltName=DNS:devops.local"
+~~~
+
+Конфигурация использует server_name devops.local, root /var/www/devops-site, index index.html и отдельные журналы /var/log/nginx/devops-site.access.log и /var/log/nginx/devops-site.error.log. Доставка выполняется scripts/deploy.sh с rsync и правами --chmod=D755,F644. После ручных изменений сервер восстанавливается повторным запуском сценария.
+
+## 9. Локальные имена
 
 В Windows, C:\Windows\System32\drivers\etc\hosts:
 
@@ -184,7 +204,7 @@ ssh -i ~/.ssh/devops_vm -o IdentitiesOnly=yes -p 2222 devops@devops.local
 Резервная копия серверного файла: /etc/hosts.pr5.backup.
 hostname -f возвращает devops-vm.devops.local.
 
-## 9. Аудит конфигурации
+## 10. Аудит конфигурации
 
 Файл в репозитории: scripts/audit.sh. Запуск на Ubuntu:
 
@@ -202,7 +222,7 @@ echo "Exit code: $?"
 Значение восстановлено в 3, sshd -t выполнен успешно, повторный аудит вернул 0.
 Служба во время отрицательного теста не перезапускалась: скрипт читает конфигурацию на диске, а не проверяет поведение работающего процесса.
 
-## 10. Восстановление после отката на 01-clean-install
+## 11. Восстановление после отката на 01-clean-install
 
 Откат уничтожает последующие изменения текущего состояния; выполнять только по заданию преподавателя, сохранив нужные файлы вне VM.
 
