@@ -46,5 +46,35 @@ check "Default incoming policy is deny" yes \
 echo "[3] User accounts"
 awk -F: '$3>=1000 && $3<65534 {printf "%s (uid=%s)\n",$1,$3}' /etc/passwd
 
+echo "[4] Web server"
+check "Nginx service active" active "$(systemctl is-active nginx 2>/dev/null || true)"
+if sudo nginx -t >/dev/null 2>&1; then
+    nginx_config=ok
+else
+    nginx_config=fail
+fi
+check "Nginx configuration syntax" ok "$nginx_config"
+
+cert_min_seconds="${CERT_MIN_SECONDS:-2592000}"
+if openssl x509 -in /etc/ssl/certs/devops.crt -checkend "$cert_min_seconds" -noout >/dev/null 2>&1; then
+    cert_valid=yes
+else
+    cert_valid=no
+fi
+check "Certificate valid for at least 30 days" yes "$cert_valid"
+
+if find /var/www/devops-site -perm -o+w -print -quit | grep -q .; then
+    web_files_writable=yes
+else
+    web_files_writable=no
+fi
+key_mode=$(sudo stat -c '%a' /etc/ssl/private/devops.key 2>/dev/null || echo missing)
+if [[ "$web_files_writable" == no && "$key_mode" == 600 ]]; then
+    web_permissions=secure
+else
+    web_permissions=insecure
+fi
+check "No world-writable web paths and private key mode 600" secure "$web_permissions"
+
 echo "Passed: $PASS; Failed: $FAIL"
 [[ "$FAIL" -eq 0 ]]
