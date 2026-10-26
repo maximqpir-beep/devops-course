@@ -76,5 +76,21 @@ else
 fi
 check "No world-writable web paths and private key mode 600" secure "$web_permissions"
 
+echo "[5] Docker"
+docker_service=$(systemctl is-active docker 2>/dev/null || true)
+db_health=$(docker inspect -f '{{.State.Health.Status}}' app-db-1 2>/dev/null || echo missing)
+app_port=$(ss -tlnH | awk '$4 ~ /:5000$/ {print $4; exit}')
+db_port=$(ss -tlnH | awk '$4 ~ /:5432$/ {print $4; exit}')
+if [[ "$app_port" == "127.0.0.1:5000" && -z "$db_port" ]]; then
+    docker_ports=secure
+else
+    docker_ports=insecure
+fi
+env_mode=$(stat -c '%a' /home/devops/app/.env 2>/dev/null || echo missing)
+check "Docker service active" active "$docker_service"
+check "PostgreSQL container healthy" healthy "$db_health"
+check "App bound to localhost; database port private" secure "$docker_ports"
+check ".env permissions are 600" 600 "$env_mode"
+
 echo "Passed: $PASS; Failed: $FAIL"
 [[ "$FAIL" -eq 0 ]]
