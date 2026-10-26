@@ -241,3 +241,17 @@ echo "Exit code: $?"
 Ссылки:
 - https://github.com/maximqpir-beep/devops-course
 - https://github.com/maximqpir-beep/devops-course/blob/main/scripts/audit.sh
+
+## 12. Контейнеризация приложения (PR 7)
+
+Приложение Flask находится в каталоге `app/`. `Dockerfile` запускает его через Gunicorn от непривилегированного пользователя `app`. `docker-compose.yml` поднимает приложение и PostgreSQL 16: база доступна приложению по имени `db` во внутренней сети Compose, а данные хранятся в томе `app_db_data`.
+
+На сервере секрет базы храни только в `/home/devops/app/.env`; файл не добавляй в Git. Создай его с закрытыми правами:
+
+```bash
+cd ~/app
+cp .env.example .env
+chmod 600 .env
+sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" .env
+docker compose up -d --build
+docker compose ps
